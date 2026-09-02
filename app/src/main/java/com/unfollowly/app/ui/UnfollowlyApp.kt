@@ -53,17 +53,18 @@ private enum class ListType(val title: String) { Unfollowers("Unfollowers"), Not
 }
 
 @Composable private fun Home(state: UiState, importAction: () -> Unit, open: (ListType) -> Unit) {
+    val latest = state.latest
     LazyColumn(contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item {
             Text("Know what changed.", fontSize = 30.sp, fontWeight = FontWeight.Black)
             Text("Private Instagram insights, calculated only on your phone.", color = Color(0xFFABA6B8))
         }
-        if (state.latest == null) item { EmptyImport(importAction) }
+        if (latest == null) item { EmptyImport(importAction) }
         else {
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    BigMetric("Followers", state.latest.followers.size, Modifier.weight(1f))
-                    BigMetric("Following", state.latest.following.size, Modifier.weight(1f))
+                    BigMetric("Followers", latest.followers.size, Modifier.weight(1f))
+                    BigMetric("Following", latest.following.size, Modifier.weight(1f))
                 }
             }
             item {
