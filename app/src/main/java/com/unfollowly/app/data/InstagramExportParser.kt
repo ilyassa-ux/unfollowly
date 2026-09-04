@@ -10,6 +10,14 @@ import java.util.zip.ZipInputStream
 
 object InstagramExportParser {
     private const val MAX_RELATIONSHIP_FILE_BYTES = 32 * 1024 * 1024
+    private val instagramProfileUrl = Regex(
+        """https?://(?:www\.)?instagram\.com/(?:_u/)?([A-Za-z0-9._]+)""",
+        RegexOption.IGNORE_CASE
+    )
+    private val nonProfilePaths = setOf(
+        "accounts", "about", "developer", "directory", "explore",
+        "legal", "privacy", "reels", "stories", "web"
+    )
 
     fun parse(name: String, input: InputStream): Snapshot {
         val followers = linkedSetOf<String>()
@@ -22,7 +30,7 @@ object InstagramExportParser {
         }
 
         require(followers.isNotEmpty() || following.isNotEmpty()) {
-            "No follower data found. Export your Instagram information as JSON, then choose the ZIP file."
+            "No follower data found. Choose an Instagram ZIP exported in HTML or JSON format."
         }
         return Snapshot(System.currentTimeMillis(), followers, following)
     }
@@ -48,12 +56,11 @@ object InstagramExportParser {
     }
 
     private fun isRelationshipFile(path: String): Boolean {
-        val normalized = path.lowercase()
-        return normalized.endsWith(".json") && (
-            normalized.contains("followers_") ||
-                normalized.endsWith("/followers.json") ||
-                normalized == "followers.json" ||
-                (normalized.contains("following") && !normalized.contains("hashtag"))
+        val fileName = path.substringAfterLast('/').lowercase()
+        val supported = fileName.endsWith(".json") || fileName.endsWith(".html")
+        return supported && (
+            fileName.startsWith("followers") ||
+                (fileName.startsWith("following") && !fileName.contains("hashtag"))
             )
     }
 
@@ -63,13 +70,17 @@ object InstagramExportParser {
         followers: MutableSet<String>,
         following: MutableSet<String>
     ) {
-        val normalized = path.lowercase()
+        val fileName = path.substringAfterLast('/').lowercase()
+        val usernames = if (fileName.endsWith(".html")) {
+            htmlUsernames(content)
+        } else {
+            jsonUsernames(content)
+        }
+
         when {
-            normalized.contains("followers_") ||
-                normalized.endsWith("/followers.json") ||
-                normalized == "followers.json" -> followers += usernames(content)
-            normalized.contains("following") && !normalized.contains("hashtag") ->
-                following += usernames(content)
+            fileName.startsWith("followers") -> followers += usernames
+            fileName.startsWith("following") && !fileName.contains("hashtag") ->
+                following += usernames
         }
     }
 
@@ -89,7 +100,13 @@ object InstagramExportParser {
         return output.toByteArray()
     }
 
-    private fun usernames(bytes: ByteArray): Set<String> {
+    private fun htmlUsernames(bytes: ByteArray): Set<String> =
+        instagramProfileUrl.findAll(bytes.toString(Charsets.UTF_8))
+            .map { it.groupValues[1] }
+            .filter { it.lowercase() !in nonProfilePaths }
+            .toCollection(linkedSetOf())
+
+    private fun jsonUsernames(bytes: ByteArray): Set<String> {
         val text = bytes.toString(Charsets.UTF_8).trim()
         val root: Any = if (text.startsWith("[")) JSONArray(text) else JSONObject(text)
         val result = linkedSetOf<String>()
