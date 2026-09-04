@@ -13,4 +13,13 @@ class InstagramExportParserTest {
         val result = InstagramExportParser.parse("followers_1.json", json.toByteArray())
         assertEquals(setOf("alice", "bob"), result.followers)
     }
+
+    @Test fun parsesFollowerHtml() {
+        val html = """
+            <a href="https://www.instagram.com/alice/">alice</a>
+            <a href="https://instagram.com/bob.photo">bob.photo</a>
+        """.trimIndent()
+        val result = InstagramExportParser.parse("followers_1.html", html.toByteArray())
+        assertEquals(setOf("alice", "bob.photo"), result.followers)
+    }
 }
