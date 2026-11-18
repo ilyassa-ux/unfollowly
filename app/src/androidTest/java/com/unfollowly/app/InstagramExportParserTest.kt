@@ -1,0 +1,25 @@
+package com.unfollowly.app
+
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.unfollowly.app.data.InstagramExportParser
+import org.junit.Assert.assertEquals
+import org.junit.Test
+import org.junit.runner.RunWith
+
+@RunWith(AndroidJUnit4::class)
+class InstagramExportParserTest {
+    @Test fun parsesFollowerJson() {
+        val json = """[{"string_list_data":[{"value":"alice"},{"value":"bob"}]}]"""
+        val result = InstagramExportParser.parse("followers_1.json", json.toByteArray())
+        assertEquals(setOf("alice", "bob"), result.followers)
+    }
+
+    @Test fun parsesFollowerHtml() {
+        val html = """
+            <a href="https://www.instagram.com/alice/">alice</a>
+            <a href="https://instagram.com/bob.photo">bob.photo</a>
+        """.trimIndent()
+        val result = InstagramExportParser.parse("followers_1.html", html.toByteArray())
+        assertEquals(setOf("alice", "bob.photo"), result.followers)
+    }
+}
